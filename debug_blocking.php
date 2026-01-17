@@ -29,26 +29,120 @@ $user_id = 1;
 // 1. Проверяем существование триггера
 echo '<h2>1. Проверка триггеров</h2>';
 try {
-    $query = "SHOW TRIGGERS LIKE 'check_user_activity'";
+    // Получаем ВСЕ триггеры (без LIKE, так как он может не работать в некоторых версиях MySQL)
+    $query = "SHOW TRIGGERS";
     $stmt = $pdo->query($query);
+    
+    // Пробуем разные варианты получения данных (PDO может возвращать ключи в разном регистре)
     $triggers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    if (count($triggers) > 0) {
-        echo '<div class="success">✅ Триггер <code>check_user_activity</code> существует!</div>';
-        echo '<table><tr><th>Триггер</th><th>Таблица</th><th>Событие</th><th>Время</th></tr>';
+    // Проверяем, какие ключи возвращаются (для отладки)
+    if (count($triggers) > 0 && count($triggers[0]) > 0) {
+        $first_trigger_keys = array_keys($triggers[0]);
+        echo '<div class="info">🔍 Найдено триггеров: <strong>' . count($triggers) . '</strong></div>';
+        echo '<div class="info">🔍 Ключи массива: <code>' . implode(', ', $first_trigger_keys) . '</code></div>';
+    }
+    
+    // Ищем нужные триггеры (проверяем разные варианты названий ключей)
+    $found_user_trigger = false;
+    $found_device_trigger = false;
+    $user_trigger_data = null;
+    $device_trigger_data = null;
+    
+    foreach ($triggers as $trigger) {
+        // Проверяем разные варианты ключей (Trigger, TRIGGER, trigger)
+        $trigger_name = null;
+        if (isset($trigger['Trigger'])) {
+            $trigger_name = $trigger['Trigger'];
+        } elseif (isset($trigger['TRIGGER'])) {
+            $trigger_name = $trigger['TRIGGER'];
+        } elseif (isset($trigger['trigger'])) {
+            $trigger_name = $trigger['trigger'];
+        }
+        
+        if ($trigger_name) {
+            // Игнорируем регистр при сравнении
+            if (strcasecmp($trigger_name, 'check_user_activity') == 0) {
+                $found_user_trigger = true;
+                $user_trigger_data = $trigger;
+            }
+            if (strcasecmp($trigger_name, 'check_device_activity') == 0) {
+                $found_device_trigger = true;
+                $device_trigger_data = $trigger;
+            }
+        }
+    }
+    
+    // Выводим результаты
+    if ($found_user_trigger || $found_device_trigger || count($triggers) > 0) {
+        echo '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 10px 0;">';
+        echo '<tr style="background: #4CAF50; color: white;">';
+        
+        // Определяем заголовки на основе первого триггера
+        if (count($triggers) > 0) {
+            $keys = array_keys($triggers[0]);
+            foreach ($keys as $key) {
+                echo '<th>' . htmlspecialchars($key) . '</th>';
+            }
+        } else {
+            echo '<th>Триггер</th><th>Таблица</th><th>Событие</th><th>Время</th>';
+        }
+        echo '</tr>';
+        
         foreach ($triggers as $trigger) {
-            echo '<tr><td>' . htmlspecialchars($trigger['Trigger']) . '</td>';
-            echo '<td>' . htmlspecialchars($trigger['Table']) . '</td>';
-            echo '<td>' . htmlspecialchars($trigger['Event']) . '</td>';
-            echo '<td>' . htmlspecialchars($trigger['Timing']) . '</td></tr>';
+            $highlight = '';
+            $trigger_name = '';
+            if (isset($trigger['Trigger'])) {
+                $trigger_name = $trigger['Trigger'];
+            } elseif (isset($trigger['TRIGGER'])) {
+                $trigger_name = $trigger['TRIGGER'];
+            } elseif (isset($trigger['trigger'])) {
+                $trigger_name = $trigger['trigger'];
+            }
+            
+            if ($trigger_name && (strcasecmp($trigger_name, 'check_user_activity') == 0 || 
+                                  strcasecmp($trigger_name, 'check_device_activity') == 0)) {
+                $highlight = ' style="background:#e8f5e9;"';
+            }
+            
+            echo '<tr' . $highlight . '>';
+            foreach ($trigger as $key => $value) {
+                echo '<td>' . htmlspecialchars($value) . '</td>';
+            }
+            echo '</tr>';
         }
         echo '</table>';
+    }
+    
+    // Выводим статус поиска
+    if ($found_user_trigger) {
+        echo '<div class="success">✅ Триггер <code>check_user_activity</code> существует!</div>';
     } else {
         echo '<div class="error">❌ Триггер <code>check_user_activity</code> НЕ НАЙДЕН!</div>';
-        echo '<div class="warning">💡 Выполните SQL-скрипт: <code>update_triggers_fast.sql</code> или <code>database_schema.sql</code></div>';
+        if (count($triggers) == 0) {
+            echo '<div class="warning">⚠️ В базе данных нет триггеров вообще. Триггер не создан.</div>';
+        } else {
+            echo '<div class="warning">⚠️ Триггер существует в phpMyAdmin, но PHP не может его найти. Возможна проблема с правами доступа или названием.</div>';
+            echo '<div class="info">💡 Найденные триггеры: ';
+            $trigger_names = [];
+            foreach ($triggers as $t) {
+                if (isset($t['Trigger'])) $trigger_names[] = $t['Trigger'];
+                elseif (isset($t['TRIGGER'])) $trigger_names[] = $t['TRIGGER'];
+                elseif (isset($t['trigger'])) $trigger_names[] = $t['trigger'];
+            }
+            echo '<code>' . implode(', ', $trigger_names) . '</code></div>';
+        }
     }
+    
+    if ($found_device_trigger) {
+        echo '<div class="success">✅ Триггер <code>check_device_activity</code> существует!</div>';
+    } else {
+        echo '<div class="warning">⚠️ Триггер <code>check_device_activity</code> не найден</div>';
+    }
+    
 } catch (PDOException $e) {
     echo '<div class="error">❌ Ошибка при проверке триггера: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    echo '<div class="info">💡 Попробуйте выполнить в MySQL: <code>SHOW TRIGGERS;</code> вручную</div>';
 }
 
 // 2. Проверяем статус пользователя
@@ -130,8 +224,69 @@ try {
     echo '<div class="error">❌ Ошибка: ' . htmlspecialchars($e->getMessage()) . '</div>';
 }
 
-// 4. Тестовая функция - добавить действие
-echo '<h2>4. Тестирование</h2>';
+// 4. Тестирование триггера напрямую
+echo '<h2>4. Тестирование работы триггера</h2>';
+
+// Пробуем напрямую проверить, работает ли триггер
+// Добавляем тестовое действие и проверяем, блокируется ли пользователь
+if (isset($_GET['test_trigger'])) {
+    try {
+        require_once 'functions.php';
+        
+        echo '<div class="info">🔬 Проверка работы триггера напрямую...</div>';
+        
+        // Проверяем текущий статус блокировки
+        $query = "SELECT IS_BLOCKED FROM users WHERE USER_ID = :user_id";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute(['user_id' => $user_id]);
+        $before_blocked = $stmt->fetchColumn();
+        
+        echo '<div class="info">📊 Статус блокировки ДО добавления действия: <strong>' . ($before_blocked == 1 ? 'ЗАБЛОКИРОВАН' : 'НЕ ЗАБЛОКИРОВАН') . '</strong></div>';
+        
+        // Добавляем действие (триггер должен сработать)
+        logUserAction($pdo, $user_id, 1, 'Тест работы триггера');
+        
+        // Проверяем статус блокировки ПОСЛЕ
+        $query = "SELECT IS_BLOCKED, BLOCKED_UNTIL FROM users WHERE USER_ID = :user_id";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute(['user_id' => $user_id]);
+        $after = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        echo '<div class="info">📊 Статус блокировки ПОСЛЕ добавления действия: <strong>' . ($after['IS_BLOCKED'] == 1 ? 'ЗАБЛОКИРОВАН' : 'НЕ ЗАБЛОКИРОВАН') . '</strong></div>';
+        
+        if ($after['IS_BLOCKED'] == 1) {
+            echo '<div class="success">✅ ТРИГГЕР РАБОТАЕТ! Пользователь заблокирован после добавления действия!</div>';
+            echo '<div class="info">⏰ Блокировка до: ' . htmlspecialchars($after['BLOCKED_UNTIL']) . '</div>';
+        } else {
+            // Проверяем количество действий
+            $query = "SELECT COUNT(*) FROM user_actions 
+                      WHERE USER_ID = :user_id 
+                      AND DATE_TIME >= DATE_SUB(NOW(), INTERVAL 5 SECOND)";
+            $stmt = $pdo->prepare($query);
+            $stmt->execute(['user_id' => $user_id]);
+            $count = $stmt->fetchColumn();
+            
+            if ($count > 3) {
+                echo '<div class="error">❌ ПРОБЛЕМА: Действий больше 3 (' . $count . '), но пользователь НЕ заблокирован. Триггер не срабатывает!</div>';
+            } else {
+                echo '<div class="info">ℹ️ Действий за последние 5 секунд: ' . $count . ' (нужно более 3 для блокировки)</div>';
+                echo '<div class="info">💡 Добавьте еще действий, чтобы проверить триггер</div>';
+            }
+        }
+        
+        echo '<script>setTimeout(function(){location.reload();}, 2000);</script>';
+        
+    } catch (PDOException $e) {
+        echo '<div class="error">❌ Ошибка: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
+}
+
+echo '<form method="GET">';
+echo '<button type="submit" name="test_trigger" value="1" class="test-button" style="background:#ff9800;">🧪 Проверить работу триггера</button>';
+echo '</form>';
+
+// 5. Тестовая функция - добавить действие
+echo '<h2>5. Тестирование</h2>';
 if (isset($_GET['test_action'])) {
     try {
         require_once 'functions.php';
