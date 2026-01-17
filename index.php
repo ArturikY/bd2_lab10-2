@@ -57,6 +57,7 @@ if ($stmt->rowCount() == 1) {
 
 //——Проверяем данные, полученные от пользователя———————
 if (isset($_POST['button_on'])) {
+    // Сохраняем команду
     $date_today = date("Y-m-d H:i:s");
     $query = "UPDATE command_table SET COMMAND='1', DATE_TIME=:date_today WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
@@ -67,9 +68,23 @@ if (isset($_POST['button_on'])) {
         $stmt = $pdo->prepare($query);
         $stmt->execute(['id' => $id, 'date_today' => $date_today]);
     }
+    
+    // Сразу обновляем состояние реле для немедленного отображения
+    $query = "UPDATE out_state_table SET OUT_STATE=1, DATE_TIME=:date_today WHERE DEVICE_ID = :id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['date_today' => $date_today, 'id' => $id]);
+    if ($stmt->rowCount() != 1) {
+        $query = "INSERT INTO out_state_table (DEVICE_ID, OUT_STATE, DATE_TIME) VALUES (:id, 1, :date_today)";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute(['id' => $id, 'date_today' => $date_today]);
+    }
+    // Обновляем переменные для отображения
+    $out_state = '1';
+    $out_state_dt = $date_today;
 }
 
 if (isset($_POST['button_off'])) {
+    // Сохраняем команду
     $date_today = date("Y-m-d H:i:s");
     $query = "UPDATE command_table SET COMMAND='0', DATE_TIME=:date_today WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
@@ -80,6 +95,19 @@ if (isset($_POST['button_off'])) {
         $stmt = $pdo->prepare($query);
         $stmt->execute(['id' => $id, 'date_today' => $date_today]);
     }
+    
+    // Сразу обновляем состояние реле для немедленного отображения
+    $query = "UPDATE out_state_table SET OUT_STATE=0, DATE_TIME=:date_today WHERE DEVICE_ID = :id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['date_today' => $date_today, 'id' => $id]);
+    if ($stmt->rowCount() != 1) {
+        $query = "INSERT INTO out_state_table (DEVICE_ID, OUT_STATE, DATE_TIME) VALUES (:id, 0, :date_today)";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute(['id' => $id, 'date_today' => $date_today]);
+    }
+    // Обновляем переменные для отображения
+    $out_state = '0';
+    $out_state_dt = $date_today;
 }
 //————————————————————————
 
