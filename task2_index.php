@@ -42,6 +42,7 @@ if ($stmt->rowCount() == 1) {
 // Проверяем данные, полученные от пользователя
 if (isset($_POST['button_on'])) {
     $date_today = date("Y-m-d H:i:s");
+    // Сохраняем команду
     $query = "UPDATE command_table SET COMMAND='1', DATE_TIME=:date_today WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['date_today' => $date_today, 'id' => $id]);
@@ -50,10 +51,30 @@ if (isset($_POST['button_on'])) {
         $stmt = $pdo->prepare($query);
         $stmt->execute(['id' => $id, 'date_today' => $date_today]);
     }
+    
+    // Сразу обновляем состояние реле для немедленного отображения
+    $query = "UPDATE out_state_table SET OUT_STATE=1, DATE_TIME=:date_today WHERE DEVICE_ID = :id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['date_today' => $date_today, 'id' => $id]);
+    if ($stmt->rowCount() != 1) {
+        $query = "INSERT INTO out_state_table (DEVICE_ID, OUT_STATE, DATE_TIME) VALUES (:id, 1, :date_today)";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute(['id' => $id, 'date_today' => $date_today]);
+    }
+    // Перезагружаем данные из БД для корректного отображения
+    $query = "SELECT * FROM out_state_table WHERE DEVICE_ID = :id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['id' => $id]);
+    if ($stmt->rowCount() == 1) {
+        $outStateData = $stmt->fetch(PDO::FETCH_ASSOC);
+        $out_state = $outStateData['OUT_STATE'];
+        $out_state_dt = $outStateData['DATE_TIME'];
+    }
 }
 
 if (isset($_POST['button_off'])) {
     $date_today = date("Y-m-d H:i:s");
+    // Сохраняем команду
     $query = "UPDATE command_table SET COMMAND='0', DATE_TIME=:date_today WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['date_today' => $date_today, 'id' => $id]);
@@ -61,6 +82,25 @@ if (isset($_POST['button_off'])) {
         $query = "INSERT INTO command_table (DEVICE_ID, COMMAND, DATE_TIME) VALUES (:id, '0', :date_today)";
         $stmt = $pdo->prepare($query);
         $stmt->execute(['id' => $id, 'date_today' => $date_today]);
+    }
+    
+    // Сразу обновляем состояние реле для немедленного отображения
+    $query = "UPDATE out_state_table SET OUT_STATE=0, DATE_TIME=:date_today WHERE DEVICE_ID = :id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['date_today' => $date_today, 'id' => $id]);
+    if ($stmt->rowCount() != 1) {
+        $query = "INSERT INTO out_state_table (DEVICE_ID, OUT_STATE, DATE_TIME) VALUES (:id, 0, :date_today)";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute(['id' => $id, 'date_today' => $date_today]);
+    }
+    // Перезагружаем данные из БД для корректного отображения
+    $query = "SELECT * FROM out_state_table WHERE DEVICE_ID = :id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['id' => $id]);
+    if ($stmt->rowCount() == 1) {
+        $outStateData = $stmt->fetch(PDO::FETCH_ASSOC);
+        $out_state = $outStateData['OUT_STATE'];
+        $out_state_dt = $outStateData['DATE_TIME'];
     }
 }
 

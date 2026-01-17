@@ -81,6 +81,16 @@ if (isset($_POST['button_on'])) {
     // Обновляем переменные для отображения
     $out_state = '1';
     $out_state_dt = $date_today;
+    
+    // Перезагружаем данные из БД для корректного отображения
+    $query = "SELECT * FROM out_state_table WHERE DEVICE_ID = :id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['id' => $id]);
+    if ($stmt->rowCount() == 1) {
+        $outStateData = $stmt->fetch(PDO::FETCH_ASSOC);
+        $out_state = $outStateData['OUT_STATE'];
+        $out_state_dt = $outStateData['DATE_TIME'];
+    }
 }
 
 if (isset($_POST['button_off'])) {
@@ -108,6 +118,16 @@ if (isset($_POST['button_off'])) {
     // Обновляем переменные для отображения
     $out_state = '0';
     $out_state_dt = $date_today;
+    
+    // Перезагружаем данные из БД для корректного отображения
+    $query = "SELECT * FROM out_state_table WHERE DEVICE_ID = :id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['id' => $id]);
+    if ($stmt->rowCount() == 1) {
+        $outStateData = $stmt->fetch(PDO::FETCH_ASSOC);
+        $out_state = $outStateData['OUT_STATE'];
+        $out_state_dt = $outStateData['DATE_TIME'];
+    }
 }
 //————————————————————————
 
