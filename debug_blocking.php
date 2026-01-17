@@ -195,9 +195,11 @@ echo '</form>';
 
 echo '<br><hr>';
 echo '<div class="info">';
-echo '<strong>Ссылки:</strong><br>';
+echo '<strong>🔗 Полезные ссылки:</strong><br>';
 echo '<a href="task6_index.php" target="_blank">task6_index.php</a> - страница для тестирования блокировки<br>';
-echo '<a href="update_triggers_fast.sql">update_triggers_fast.sql</a> - скрипт для обновления триггеров<br>';
+echo '<a href="create_triggers.php" target="_blank" style="font-weight:bold;color:#2196F3;">create_triggers.php</a> - автоматическое создание триггеров (РЕКОМЕНДУЕТСЯ!)<br>';
+echo '<a href="create_triggers_simple.sql">create_triggers_simple.sql</a> - SQL-скрипт для ручного выполнения<br>';
+echo '<a href="update_triggers_fast.sql">update_triggers_fast.sql</a> - альтернативный SQL-скрипт<br>';
 echo '</div>';
 
 echo '</body></html>';
