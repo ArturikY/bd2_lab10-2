@@ -12,7 +12,7 @@ if (isset($_GET['ID'])) {
     }
     
     // Получаем данные устройства
-    $query = "SELECT * FROM DEVICE_TABLE WHERE DEVICE_ID = :id";
+    $query = "SELECT * FROM device_table WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['id' => $device_id]);
     
@@ -20,7 +20,7 @@ if (isset($_GET['ID'])) {
         // Обрабатываем состояние реле
         if (isset($_GET['Rele'])) {
             // Проверяем есть ли в БД предыдущее состояние реле
-            $query = "SELECT OUT_STATE FROM OUT_STATE_TABLE WHERE DEVICE_ID = :id";
+            $query = "SELECT OUT_STATE FROM out_state_table WHERE DEVICE_ID = :id";
             $stmt = $pdo->prepare($query);
             $stmt->execute(['id' => $device_id]);
             $date_today = date("Y-m-d H:i:s"); // текущее время
@@ -28,12 +28,12 @@ if (isset($_GET['ID'])) {
             
             if ($stmt->rowCount() == 1) {
                 // Если данные есть, обновляем состояние реле
-                $query = "UPDATE OUT_STATE_TABLE SET OUT_STATE = :rele, DATE_TIME = :date_today WHERE DEVICE_ID = :id";
+                $query = "UPDATE out_state_table SET OUT_STATE = :rele, DATE_TIME = :date_today WHERE DEVICE_ID = :id";
                 $stmt = $pdo->prepare($query);
                 $stmt->execute(['rele' => $rele_state, 'date_today' => $date_today, 'id' => $device_id]);
             } else {
                 // Если данных нет, добавляем новое состояние реле
-                $query = "INSERT INTO OUT_STATE_TABLE (DEVICE_ID, OUT_STATE, DATE_TIME) VALUES (:id, :rele, :date_today)";
+                $query = "INSERT INTO out_state_table (DEVICE_ID, OUT_STATE, DATE_TIME) VALUES (:id, :rele, :date_today)";
                 $stmt = $pdo->prepare($query);
                 $stmt->execute(['id' => $device_id, 'rele' => $rele_state, 'date_today' => $date_today]);
             }
@@ -42,7 +42,7 @@ if (isset($_GET['ID'])) {
         // Обрабатываем температуру
         if (isset($_GET['Term'])) {
             // Проверяем есть ли в БД предыдущее значение температуры
-            $query = "SELECT TEMPERATURE FROM TEMPERATURE_TABLE WHERE DEVICE_ID = :id";
+            $query = "SELECT TEMPERATURE FROM temperature_table WHERE DEVICE_ID = :id";
             $stmt = $pdo->prepare($query);
             $stmt->execute(['id' => $device_id]);
             $date_today = date("Y-m-d H:i:s"); // текущее время
@@ -50,19 +50,19 @@ if (isset($_GET['ID'])) {
             
             if ($stmt->rowCount() == 1) {
                 // Если данные есть, обновляем температуру
-                $query = "UPDATE TEMPERATURE_TABLE SET TEMPERATURE = :term, DATE_TIME = :date_today WHERE DEVICE_ID = :id";
+                $query = "UPDATE temperature_table SET TEMPERATURE = :term, DATE_TIME = :date_today WHERE DEVICE_ID = :id";
                 $stmt = $pdo->prepare($query);
                 $stmt->execute(['term' => $temperature, 'date_today' => $date_today, 'id' => $device_id]);
             } else {
                 // Если данных нет, добавляем новую температуру
-                $query = "INSERT INTO TEMPERATURE_TABLE (DEVICE_ID, TEMPERATURE, DATE_TIME) VALUES (:id, :term, :date_today)";
+                $query = "INSERT INTO temperature_table (DEVICE_ID, TEMPERATURE, DATE_TIME) VALUES (:id, :term, :date_today)";
                 $stmt = $pdo->prepare($query);
                 $stmt->execute(['id' => $device_id, 'term' => $temperature, 'date_today' => $date_today]);
             }
         }
 
         // Достаём из БД текущую команду управления реле
-        $query = "SELECT COMMAND FROM COMMAND_TABLE WHERE DEVICE_ID = :id";
+        $query = "SELECT COMMAND FROM command_table WHERE DEVICE_ID = :id";
         $stmt = $pdo->prepare($query);
         $stmt->execute(['id' => $device_id]);
         

@@ -20,7 +20,8 @@ try {
 $id = 1;
 
 //——————Получаем из БД все данные об устройстве——————-
-$query = "SELECT * FROM DEVICE_TABLE WHERE DEVICE_ID = :id";
+// Используем COALESCE для поддержки как NAME, так и DEVICE_NAME
+$query = "SELECT COALESCE(DEVICE_NAME, NAME) AS device_name FROM device_table WHERE DEVICE_ID = :id";
 $stmt = $pdo->prepare($query);
 $stmt->execute(['id' => $id]);
 if ($stmt->rowCount() == 1) {
@@ -29,7 +30,7 @@ if ($stmt->rowCount() == 1) {
     $device_name = '?';
 }
 
-$query = "SELECT * FROM TEMPERATURE_TABLE WHERE DEVICE_ID = :id";
+$query = "SELECT * FROM temperature_table WHERE DEVICE_ID = :id";
 $stmt = $pdo->prepare($query);
 $stmt->execute(['id' => $id]);
 if ($stmt->rowCount() == 1) {
@@ -41,7 +42,7 @@ if ($stmt->rowCount() == 1) {
     $temperature_dt = '?';
 }
 
-$query = "SELECT * FROM OUT_STATE_TABLE WHERE DEVICE_ID = :id";
+$query = "SELECT * FROM out_state_table WHERE DEVICE_ID = :id";
 $stmt = $pdo->prepare($query);
 $stmt->execute(['id' => $id]);
 if ($stmt->rowCount() == 1) {
@@ -57,12 +58,12 @@ if ($stmt->rowCount() == 1) {
 //——Проверяем данные, полученные от пользователя———————
 if (isset($_POST['button_on'])) {
     $date_today = date("Y-m-d H:i:s");
-    $query = "UPDATE COMMAND_TABLE SET COMMAND='1', DATE_TIME=:date_today WHERE DEVICE_ID = :id";
+    $query = "UPDATE command_table SET COMMAND='1', DATE_TIME=:date_today WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['date_today' => $date_today, 'id' => $id]);
     if ($stmt->rowCount() != 1) {
         // Если не смогли обновить — вставляем в таблицу строчку с данными о команде для устройства
-        $query = "INSERT INTO COMMAND_TABLE (DEVICE_ID, COMMAND, DATE_TIME) VALUES (:id, '1', :date_today)";
+        $query = "INSERT INTO command_table (DEVICE_ID, COMMAND, DATE_TIME) VALUES (:id, '1', :date_today)";
         $stmt = $pdo->prepare($query);
         $stmt->execute(['id' => $id, 'date_today' => $date_today]);
     }
@@ -70,12 +71,12 @@ if (isset($_POST['button_on'])) {
 
 if (isset($_POST['button_off'])) {
     $date_today = date("Y-m-d H:i:s");
-    $query = "UPDATE COMMAND_TABLE SET COMMAND='0', DATE_TIME=:date_today WHERE DEVICE_ID = :id";
+    $query = "UPDATE command_table SET COMMAND='0', DATE_TIME=:date_today WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['date_today' => $date_today, 'id' => $id]);
     if ($stmt->rowCount() != 1) {
         // Если не смогли обновить — вставляем в таблицу строчку с данными о команде для устройства
-        $query = "INSERT INTO COMMAND_TABLE (DEVICE_ID, COMMAND, DATE_TIME) VALUES (:id, '0', :date_today)";
+        $query = "INSERT INTO command_table (DEVICE_ID, COMMAND, DATE_TIME) VALUES (:id, '0', :date_today)";
         $stmt = $pdo->prepare($query);
         $stmt->execute(['id' => $id, 'date_today' => $date_today]);
     }

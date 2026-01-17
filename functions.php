@@ -5,8 +5,8 @@ function getDeviceData($pdo, $device_id) {
     $device = ['device_name' => '?', 'temperature' => '?', 'temperature_dt' => '?', 
                'out_state' => '?', 'out_state_dt' => '?'];
     
-    // Получаем имя устройства
-    $query = "SELECT DEVICE_NAME FROM DEVICE_TABLE WHERE DEVICE_ID = :id";
+    // Получаем имя устройства (поддержка как NAME, так и DEVICE_NAME)
+    $query = "SELECT COALESCE(DEVICE_NAME, NAME) AS device_name FROM device_table WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['id' => $device_id]);
     if ($stmt->rowCount() == 1) {
@@ -14,7 +14,7 @@ function getDeviceData($pdo, $device_id) {
     }
     
     // Получаем температуру
-    $query = "SELECT * FROM TEMPERATURE_TABLE WHERE DEVICE_ID = :id";
+    $query = "SELECT * FROM temperature_table WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['id' => $device_id]);
     if ($stmt->rowCount() == 1) {
@@ -24,7 +24,7 @@ function getDeviceData($pdo, $device_id) {
     }
     
     // Получаем состояние реле
-    $query = "SELECT * FROM OUT_STATE_TABLE WHERE DEVICE_ID = :id";
+    $query = "SELECT * FROM out_state_table WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['id' => $device_id]);
     if ($stmt->rowCount() == 1) {
@@ -37,7 +37,7 @@ function getDeviceData($pdo, $device_id) {
 }
 
 function getAllDevices($pdo) {
-    $query = "SELECT DEVICE_ID FROM DEVICE_TABLE";
+    $query = "SELECT DEVICE_ID FROM device_table";
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -45,11 +45,11 @@ function getAllDevices($pdo) {
 
 function sendCommand($pdo, $device_id, $command) {
     $date_today = date("Y-m-d H:i:s");
-    $query = "UPDATE COMMAND_TABLE SET COMMAND=:command, DATE_TIME=:date_today WHERE DEVICE_ID = :id";
+    $query = "UPDATE command_table SET COMMAND=:command, DATE_TIME=:date_today WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['command' => $command, 'date_today' => $date_today, 'id' => $device_id]);
     if ($stmt->rowCount() != 1) {
-        $query = "INSERT INTO COMMAND_TABLE (DEVICE_ID, COMMAND, DATE_TIME) VALUES (:id, :command, :date_today)";
+        $query = "INSERT INTO command_table (DEVICE_ID, COMMAND, DATE_TIME) VALUES (:id, :command, :date_today)";
         $stmt = $pdo->prepare($query);
         $stmt->execute(['id' => $device_id, 'command' => $command, 'date_today' => $date_today]);
     }
@@ -57,13 +57,13 @@ function sendCommand($pdo, $device_id, $command) {
 
 function logUserAction($pdo, $user_id, $device_id, $action) {
     $date_today = date("Y-m-d H:i:s");
-    $query = "INSERT INTO USER_ACTIONS (USER_ID, DEVICE_ID, ACTION, DATE_TIME) VALUES (:user_id, :device_id, :action, :date_today)";
+    $query = "INSERT INTO user_actions (USER_ID, DEVICE_ID, ACTION, DATE_TIME) VALUES (:user_id, :device_id, :action, :date_today)";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['user_id' => $user_id, 'device_id' => $device_id, 'action' => $action, 'date_today' => $date_today]);
 }
 
 function isUserBlocked($pdo, $user_id) {
-    $query = "SELECT IS_BLOCKED FROM USERS WHERE USER_ID = :user_id";
+    $query = "SELECT IS_BLOCKED FROM users WHERE USER_ID = :user_id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['user_id' => $user_id]);
     if ($stmt->rowCount() == 1) {
@@ -74,7 +74,7 @@ function isUserBlocked($pdo, $user_id) {
 }
 
 function isDeviceBlocked($pdo, $device_id) {
-    $query = "SELECT IS_BLOCKED FROM DEVICE_TABLE WHERE DEVICE_ID = :device_id";
+    $query = "SELECT IS_BLOCKED FROM device_table WHERE DEVICE_ID = :device_id";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['device_id' => $device_id]);
     if ($stmt->rowCount() == 1) {
@@ -85,7 +85,7 @@ function isDeviceBlocked($pdo, $device_id) {
 }
 
 function getDeviceHistory($pdo, $device_id) {
-    $query = "SELECT * FROM USER_ACTIONS WHERE DEVICE_ID = :device_id ORDER BY DATE_TIME DESC LIMIT 100";
+    $query = "SELECT * FROM user_actions WHERE DEVICE_ID = :device_id ORDER BY DATE_TIME DESC LIMIT 100";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['device_id' => $device_id]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -1,18 +1,65 @@
 -- Схема базы данных для лабораторной работы 10
--- Обновление существующей структуры БД
+-- Обновление существующей структуры БД (совместимо с MariaDB)
+-- ВНИМАНИЕ: Этот скрипт добавляет недостающие поля и таблицы к существующей БД
+
 USE `bd_lab10-2`;
 
--- Добавляем недостающие поля в существующую таблицу device_table
--- Если поле уже существует, ALTER TABLE не вызовет ошибку (но может выдать предупреждение)
-ALTER TABLE `device_table` 
-ADD COLUMN IF NOT EXISTS `DEVICE_NAME` CHAR(40) DEFAULT NULL AFTER `NAME`,
-ADD COLUMN IF NOT EXISTS `DEVICE_TOKEN` VARCHAR(255) DEFAULT NULL AFTER `DEVICE_PASSWORD`,
-ADD COLUMN IF NOT EXISTS `IS_BLOCKED` TINYINT(1) DEFAULT 0 AFTER `DEVICE_TOKEN`;
+-- Проверяем и добавляем недостающие поля в device_table (с проверкой существования)
+SET @dbname = DATABASE();
+SET @tablename = 'device_table';
+SET @columnname = 'DEVICE_NAME';
+
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE
+      (TABLE_SCHEMA = @dbname)
+      AND (TABLE_NAME = @tablename)
+      AND (COLUMN_NAME = @columnname)
+  ) > 0,
+  'SELECT 1',
+  CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN `', @columnname, '` CHAR(40) DEFAULT NULL AFTER `NAME`')
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
+SET @columnname = 'DEVICE_TOKEN';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE
+      (TABLE_SCHEMA = @dbname)
+      AND (TABLE_NAME = @tablename)
+      AND (COLUMN_NAME = @columnname)
+  ) > 0,
+  'SELECT 1',
+  CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN `', @columnname, '` VARCHAR(255) DEFAULT NULL AFTER `DEVICE_PASSWORD`')
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
+
+SET @columnname = 'IS_BLOCKED';
+SET @preparedStatement = (SELECT IF(
+  (
+    SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE
+      (TABLE_SCHEMA = @dbname)
+      AND (TABLE_NAME = @tablename)
+      AND (COLUMN_NAME = @columnname)
+  ) > 0,
+  'SELECT 1',
+  CONCAT('ALTER TABLE ', @tablename, ' ADD COLUMN `', @columnname, '` TINYINT(1) DEFAULT 0 AFTER `DEVICE_TOKEN`')
+));
+PREPARE alterIfNotExists FROM @preparedStatement;
+EXECUTE alterIfNotExists;
+DEALLOCATE PREPARE alterIfNotExists;
 
 -- Копируем данные из NAME в DEVICE_NAME для совместимости (если DEVICE_NAME пустое)
 UPDATE `device_table` SET `DEVICE_NAME` = `NAME` WHERE `DEVICE_NAME` IS NULL OR `DEVICE_NAME` = '';
 
--- Создаем недостающие таблицы для температуры, состояния реле и команд
+-- Создаем недостающие таблицы (используем IF NOT EXISTS - работает в MariaDB)
 CREATE TABLE IF NOT EXISTS `temperature_table` (
     `DEVICE_ID` INT NOT NULL,
     `TEMPERATURE` DECIMAL(5,2),
@@ -131,3 +178,4 @@ BEGIN
 END$$
 
 DELIMITER ;
+

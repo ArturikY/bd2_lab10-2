@@ -6,7 +6,7 @@ require_once 'functions.php';
 
 // Улучшенная идентификация через токен устройства
 function getDeviceByToken($pdo, $token) {
-    $query = "SELECT DEVICE_ID FROM DEVICE_TABLE WHERE DEVICE_TOKEN = :token";
+    $query = "SELECT DEVICE_ID FROM device_table WHERE DEVICE_TOKEN = :token";
     $stmt = $pdo->prepare($query);
     $stmt->execute(['token' => $token]);
     if ($stmt->rowCount() == 1) {

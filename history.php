@@ -5,8 +5,8 @@ require_once 'functions.php';
 
 $device_id = isset($_GET['device_id']) ? intval($_GET['device_id']) : 1;
 
-// Получаем имя устройства
-$query = "SELECT DEVICE_NAME FROM DEVICE_TABLE WHERE DEVICE_ID = :id";
+// Получаем имя устройства (поддержка как NAME, так и DEVICE_NAME)
+$query = "SELECT COALESCE(DEVICE_NAME, NAME) AS device_name FROM device_table WHERE DEVICE_ID = :id";
 $stmt = $pdo->prepare($query);
 $stmt->execute(['id' => $device_id]);
 $device_name = $stmt->rowCount() == 1 ? $stmt->fetchColumn() : 'Устройство #' . $device_id;
