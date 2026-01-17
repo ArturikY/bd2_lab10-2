@@ -1,0 +1,205 @@
+<?php
+// Диагностический скрипт для проверки блокировки пользователя
+require_once 'config.php';
+
+echo '<!DOCTYPE HTML>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>Диагностика блокировки</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .info { background: #e3f2fd; padding: 10px; margin: 10px 0; border-left: 4px solid #2196F3; }
+        .success { background: #e8f5e9; padding: 10px; margin: 10px 0; border-left: 4px solid #4CAF50; }
+        .error { background: #ffebee; padding: 10px; margin: 10px 0; border-left: 4px solid #f44336; }
+        .warning { background: #fff3e0; padding: 10px; margin: 10px 0; border-left: 4px solid #ff9800; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        h2 { color: #333; }
+        .test-button { background: #4CAF50; color: white; padding: 10px 20px; border: none; cursor: pointer; margin: 5px; }
+        .test-button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+<h1>🔍 Диагностика блокировки пользователя</h1>';
+
+$user_id = 1;
+
+// 1. Проверяем существование триггера
+echo '<h2>1. Проверка триггеров</h2>';
+try {
+    $query = "SHOW TRIGGERS LIKE 'check_user_activity'";
+    $stmt = $pdo->query($query);
+    $triggers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (count($triggers) > 0) {
+        echo '<div class="success">✅ Триггер <code>check_user_activity</code> существует!</div>';
+        echo '<table><tr><th>Триггер</th><th>Таблица</th><th>Событие</th><th>Время</th></tr>';
+        foreach ($triggers as $trigger) {
+            echo '<tr><td>' . htmlspecialchars($trigger['Trigger']) . '</td>';
+            echo '<td>' . htmlspecialchars($trigger['Table']) . '</td>';
+            echo '<td>' . htmlspecialchars($trigger['Event']) . '</td>';
+            echo '<td>' . htmlspecialchars($trigger['Timing']) . '</td></tr>';
+        }
+        echo '</table>';
+    } else {
+        echo '<div class="error">❌ Триггер <code>check_user_activity</code> НЕ НАЙДЕН!</div>';
+        echo '<div class="warning">💡 Выполните SQL-скрипт: <code>update_triggers_fast.sql</code> или <code>database_schema.sql</code></div>';
+    }
+} catch (PDOException $e) {
+    echo '<div class="error">❌ Ошибка при проверке триггера: ' . htmlspecialchars($e->getMessage()) . '</div>';
+}
+
+// 2. Проверяем статус пользователя
+echo '<h2>2. Статус пользователя</h2>';
+try {
+    $query = "SELECT USER_ID, USERNAME, IS_BLOCKED, BLOCKED_UNTIL FROM users WHERE USER_ID = :user_id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['user_id' => $user_id]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($user) {
+        echo '<table>';
+        echo '<tr><th>Параметр</th><th>Значение</th></tr>';
+        echo '<tr><td>USER_ID</td><td>' . htmlspecialchars($user['USER_ID']) . '</td></tr>';
+        echo '<tr><td>USERNAME</td><td>' . htmlspecialchars($user['USERNAME']) . '</td></tr>';
+        echo '<tr><td>IS_BLOCKED</td><td>' . ($user['IS_BLOCKED'] == 1 ? '<span style="color:red;font-weight:bold">ДА (заблокирован)</span>' : '<span style="color:green">НЕТ (не заблокирован)</span>') . '</td></tr>';
+        echo '<tr><td>BLOCKED_UNTIL</td><td>' . ($user['BLOCKED_UNTIL'] ? htmlspecialchars($user['BLOCKED_UNTIL']) : 'NULL') . '</td></tr>';
+        echo '</table>';
+        
+        if ($user['IS_BLOCKED'] == 1) {
+            echo '<div class="error">⚠️ Пользователь ЗАБЛОКИРОВАН!</div>';
+        } else {
+            echo '<div class="success">✅ Пользователь НЕ заблокирован</div>';
+        }
+    } else {
+        echo '<div class="error">❌ Пользователь с ID=' . $user_id . ' не найден!</div>';
+    }
+} catch (PDOException $e) {
+    echo '<div class="error">❌ Ошибка: ' . htmlspecialchars($e->getMessage()) . '</div>';
+}
+
+// 3. Проверяем количество действий за последние 5 секунд
+echo '<h2>3. Действия пользователя (последние 5 секунд)</h2>';
+try {
+    $query = "SELECT COUNT(*) as count FROM user_actions 
+              WHERE USER_ID = :user_id 
+              AND DATE_TIME >= DATE_SUB(NOW(), INTERVAL 5 SECOND)";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['user_id' => $user_id]);
+    $count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+    
+    echo '<div class="info">📊 Количество действий за последние 5 секунд: <strong>' . $count . '</strong></div>';
+    
+    if ($count > 3) {
+        echo '<div class="warning">⚠️ Действий больше 3! Пользователь ДОЛЖЕН быть заблокирован!</div>';
+    } else {
+        echo '<div class="info">ℹ️ Для блокировки нужно более 3 действий за 5 секунд. Сейчас: ' . $count . '</div>';
+    }
+    
+    // Показываем последние 10 действий
+    $query = "SELECT ACTION_ID, DEVICE_ID, ACTION, DATE_TIME 
+              FROM user_actions 
+              WHERE USER_ID = :user_id 
+              ORDER BY DATE_TIME DESC 
+              LIMIT 10";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['user_id' => $user_id]);
+    $actions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (count($actions) > 0) {
+        echo '<h3>Последние 10 действий:</h3>';
+        echo '<table><tr><th>ID</th><th>Устройство</th><th>Действие</th><th>Время</th><th>Прошло секунд</th></tr>';
+        foreach ($actions as $action) {
+            $time_diff = time() - strtotime($action['DATE_TIME']);
+            $color = $time_diff <= 5 ? 'red' : 'black';
+            echo '<tr style="color:' . $color . '">';
+            echo '<td>' . htmlspecialchars($action['ACTION_ID']) . '</td>';
+            echo '<td>' . htmlspecialchars($action['DEVICE_ID']) . '</td>';
+            echo '<td>' . htmlspecialchars($action['ACTION']) . '</td>';
+            echo '<td>' . htmlspecialchars($action['DATE_TIME']) . '</td>';
+            echo '<td>' . $time_diff . ' сек назад</td>';
+            echo '</tr>';
+        }
+        echo '</table>';
+    } else {
+        echo '<div class="warning">⚠️ Действия не найдены. Нажмите кнопки на странице task6_index.php</div>';
+    }
+} catch (PDOException $e) {
+    echo '<div class="error">❌ Ошибка: ' . htmlspecialchars($e->getMessage()) . '</div>';
+}
+
+// 4. Тестовая функция - добавить действие
+echo '<h2>4. Тестирование</h2>';
+if (isset($_GET['test_action'])) {
+    try {
+        require_once 'functions.php';
+        logUserAction($pdo, $user_id, 1, 'Тестовое действие');
+        echo '<div class="success">✅ Действие добавлено! Обновите страницу для проверки.</div>';
+        echo '<script>setTimeout(function(){location.reload();}, 1000);</script>';
+    } catch (PDOException $e) {
+        echo '<div class="error">❌ Ошибка при добавлении действия: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
+}
+
+echo '<div class="info">';
+echo '<strong>Как протестировать:</strong><br>';
+echo '1. Откройте эту страницу и <strong>task6_index.php</strong> в разных вкладках<br>';
+echo '2. На странице task6_index.php быстро нажмите кнопки 4-5 раз<br>';
+echo '3. ИЛИ используйте кнопку ниже для быстрого тестирования<br>';
+echo '4. Обновите эту страницу для проверки результата<br>';
+echo '</div>';
+
+echo '<form method="GET">';
+echo '<button type="submit" name="test_action" value="1" class="test-button">➕ Добавить тестовое действие</button>';
+echo '</form>';
+
+echo '<h2>5. Быстрое добавление нескольких действий</h2>';
+if (isset($_GET['add_many'])) {
+    $count = intval($_GET['count'] ?? 5);
+    try {
+        require_once 'functions.php';
+        for ($i = 0; $i < $count; $i++) {
+            logUserAction($pdo, $user_id, 1, 'Тестовое действие ' . ($i + 1));
+            usleep(100000); // Небольшая задержка 0.1 сек между действиями
+        }
+        echo '<div class="success">✅ Добавлено ' . $count . ' действий! Обновите страницу для проверки.</div>';
+        echo '<script>setTimeout(function(){location.reload();}, 1000);</script>';
+    } catch (PDOException $e) {
+        echo '<div class="error">❌ Ошибка: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
+}
+
+echo '<form method="GET">';
+echo '<label>Количество действий: <input type="number" name="count" value="5" min="1" max="10"></label><br><br>';
+echo '<button type="submit" name="add_many" value="1" class="test-button">⚡ Добавить несколько действий быстро</button>';
+echo '</form>';
+
+// 6. Разблокировка пользователя
+if (isset($_GET['unblock'])) {
+    try {
+        $query = "UPDATE users SET IS_BLOCKED = 0, BLOCKED_UNTIL = NULL WHERE USER_ID = :user_id";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute(['user_id' => $user_id]);
+        echo '<div class="success">✅ Пользователь разблокирован! Обновите страницу.</div>';
+        echo '<script>setTimeout(function(){location.reload();}, 1000);</script>';
+    } catch (PDOException $e) {
+        echo '<div class="error">❌ Ошибка: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    }
+}
+
+echo '<br><form method="GET">';
+echo '<button type="submit" name="unblock" value="1" class="test-button" style="background:#ff9800;">🔓 Разблокировать пользователя</button>';
+echo '</form>';
+
+echo '<br><hr>';
+echo '<div class="info">';
+echo '<strong>Ссылки:</strong><br>';
+echo '<a href="task6_index.php" target="_blank">task6_index.php</a> - страница для тестирования блокировки<br>';
+echo '<a href="update_triggers_fast.sql">update_triggers_fast.sql</a> - скрипт для обновления триггеров<br>';
+echo '</div>';
+
+echo '</body></html>';
+?>
+

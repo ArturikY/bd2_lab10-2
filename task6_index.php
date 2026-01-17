@@ -10,7 +10,28 @@ $devices = getAllDevices($pdo);
 // Обработка команд от пользователя
 $user_id = 1; // По умолчанию пользователь с ID = 1
 
-// Проверяем, не заблокирован ли пользователь
+// Обрабатываем команды ПЕРЕД проверкой блокировки (чтобы триггер успел сработать)
+if (isset($_POST['button_on']) && isset($_POST['device_id'])) {
+    $device_id = intval($_POST['device_id']);
+    sendCommand($pdo, $device_id, '1');
+    logUserAction($pdo, $user_id, $device_id, 'Включить реле');
+    // Триггер автоматически проверит частоту обращений и заблокирует при необходимости
+    // После добавления действия делаем редирект, чтобы проверить блокировку
+    header("Location: task6_index.php");
+    exit;
+}
+
+if (isset($_POST['button_off']) && isset($_POST['device_id'])) {
+    $device_id = intval($_POST['device_id']);
+    sendCommand($pdo, $device_id, '0');
+    logUserAction($pdo, $user_id, $device_id, 'Выключить реле');
+    // Триггер автоматически проверит частоту обращений и заблокирует при необходимости
+    // После добавления действия делаем редирект, чтобы проверить блокировку
+    header("Location: task6_index.php");
+    exit;
+}
+
+// Проверяем, не заблокирован ли пользователь ПОСЛЕ обработки команд
 if (isUserBlocked($pdo, $user_id)) {
     echo '<!DOCTYPE HTML>
 <html>
@@ -31,19 +52,6 @@ if (isUserBlocked($pdo, $user_id)) {
 </body>
 </html>';
     exit;
-}
-
-if (isset($_POST['button_on']) && isset($_POST['device_id'])) {
-    $device_id = intval($_POST['device_id']);
-    sendCommand($pdo, $device_id, '1');
-    logUserAction($pdo, $user_id, $device_id, 'Включить реле');
-    // Триггер автоматически проверит частоту обращений и заблокирует при необходимости
-}
-
-if (isset($_POST['button_off']) && isset($_POST['device_id'])) {
-    $device_id = intval($_POST['device_id']);
-    sendCommand($pdo, $device_id, '0');
-    logUserAction($pdo, $user_id, $device_id, 'Выключить реле');
 }
 
 // Формируем интерфейс для всех устройств
