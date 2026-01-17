@@ -56,10 +56,10 @@ function sendCommand($pdo, $device_id, $command) {
 }
 
 function logUserAction($pdo, $user_id, $device_id, $action) {
-    $date_today = date("Y-m-d H:i:s");
-    $query = "INSERT INTO user_actions (USER_ID, DEVICE_ID, ACTION, DATE_TIME) VALUES (:user_id, :device_id, :action, :date_today)";
+    // Используем NOW() из MySQL вместо PHP date() для синхронизации с триггерами
+    $query = "INSERT INTO user_actions (USER_ID, DEVICE_ID, ACTION, DATE_TIME) VALUES (:user_id, :device_id, :action, NOW())";
     $stmt = $pdo->prepare($query);
-    $stmt->execute(['user_id' => $user_id, 'device_id' => $device_id, 'action' => $action, 'date_today' => $date_today]);
+    $stmt->execute(['user_id' => $user_id, 'device_id' => $device_id, 'action' => $action]);
 }
 
 function isUserBlocked($pdo, $user_id) {

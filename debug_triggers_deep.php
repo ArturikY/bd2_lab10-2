@@ -215,7 +215,7 @@ try {
     
     // 6. Тест NOW() функции
     echo '<h2>6. Проверка функции NOW()</h2>';
-    $stmt = $pdo->query("SELECT NOW() as current_time, DATE_SUB(NOW(), INTERVAL 5 SECOND) as five_seconds_ago");
+    $stmt = $pdo->query("SELECT NOW() as `current_time`, DATE_SUB(NOW(), INTERVAL 5 SECOND) as `five_seconds_ago`");
     $time_test = $stmt->fetch(PDO::FETCH_ASSOC);
     
     echo '<div class="info">Текущее время (NOW()): <strong>' . $time_test['current_time'] . '</strong></div>';
