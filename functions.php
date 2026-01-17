@@ -44,14 +44,27 @@ function getAllDevices($pdo) {
 }
 
 function sendCommand($pdo, $device_id, $command) {
-    $date_today = date("Y-m-d H:i:s");
-    $query = "UPDATE command_table SET COMMAND=:command, DATE_TIME=:date_today WHERE DEVICE_ID = :id";
+    // Сохраняем команду в command_table
+    $query = "UPDATE command_table SET COMMAND=:command, DATE_TIME=NOW() WHERE DEVICE_ID = :id";
     $stmt = $pdo->prepare($query);
-    $stmt->execute(['command' => $command, 'date_today' => $date_today, 'id' => $device_id]);
+    $stmt->execute(['command' => $command, 'id' => $device_id]);
     if ($stmt->rowCount() != 1) {
-        $query = "INSERT INTO command_table (DEVICE_ID, COMMAND, DATE_TIME) VALUES (:id, :command, :date_today)";
+        $query = "INSERT INTO command_table (DEVICE_ID, COMMAND, DATE_TIME) VALUES (:id, :command, NOW())";
         $stmt = $pdo->prepare($query);
-        $stmt->execute(['id' => $device_id, 'command' => $command, 'date_today' => $date_today]);
+        $stmt->execute(['id' => $device_id, 'command' => $command]);
+    }
+    
+    // Сразу обновляем состояние реле в out_state_table для немедленного отображения в интерфейсе
+    // (В реальной системе устройство подтвердит это состояние позже через device_status.php)
+    $rele_state = intval($command); // 0 или 1
+    $query = "UPDATE out_state_table SET OUT_STATE=:rele, DATE_TIME=NOW() WHERE DEVICE_ID = :id";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['rele' => $rele_state, 'id' => $device_id]);
+    if ($stmt->rowCount() != 1) {
+        // Если записи нет, создаем новую
+        $query = "INSERT INTO out_state_table (DEVICE_ID, OUT_STATE, DATE_TIME) VALUES (:id, :rele, NOW())";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute(['id' => $device_id, 'rele' => $rele_state]);
     }
 }
 
