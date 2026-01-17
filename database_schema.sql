@@ -83,15 +83,15 @@ BEGIN
     DECLARE action_count INT;
     DECLARE block_until DATETIME;
     
-    -- Подсчитываем количество действий пользователя за последнюю минуту
+    -- Подсчитываем количество действий пользователя за последние 5 секунд
     SELECT COUNT(*) INTO action_count
     FROM `user_actions`
     WHERE `USER_ID` = NEW.`USER_ID`
-    AND `DATE_TIME` >= DATE_SUB(NOW(), INTERVAL 1 MINUTE);
+    AND `DATE_TIME` >= DATE_SUB(NOW(), INTERVAL 5 SECOND);
     
-    -- Если больше 10 действий за минуту - блокируем на 5 минут
-    IF action_count > 10 THEN
-        SET block_until = DATE_ADD(NOW(), INTERVAL 5 MINUTE);
+    -- Если больше 3 действий за 5 секунд - блокируем на 30 секунд
+    IF action_count > 3 THEN
+        SET block_until = DATE_ADD(NOW(), INTERVAL 30 SECOND);
         UPDATE `users` 
         SET `IS_BLOCKED` = 1, `BLOCKED_UNTIL` = block_until
         WHERE `USER_ID` = NEW.`USER_ID`;
@@ -116,14 +116,14 @@ FOR EACH ROW
 BEGIN
     DECLARE action_count INT;
     
-    -- Подсчитываем количество обращений к устройству за последние 30 секунд
+    -- Подсчитываем количество обращений к устройству за последние 5 секунд
     SELECT COUNT(*) INTO action_count
     FROM `user_actions`
     WHERE `DEVICE_ID` = NEW.`DEVICE_ID`
-    AND `DATE_TIME` >= DATE_SUB(NOW(), INTERVAL 30 SECOND);
+    AND `DATE_TIME` >= DATE_SUB(NOW(), INTERVAL 5 SECOND);
     
-    -- Если больше 5 обращений за 30 секунд - блокируем устройство
-    IF action_count > 5 THEN
+    -- Если больше 3 обращений за 5 секунд - блокируем устройство
+    IF action_count > 3 THEN
         UPDATE `device_table` 
         SET `IS_BLOCKED` = 1
         WHERE `DEVICE_ID` = NEW.`DEVICE_ID`;
