@@ -1,7 +1,7 @@
 <?php
 // Задание 2: Подключение к БД и шаблон вынесены в отдельные файлы
 require_once 'config.php';
-require_once 'template.php';
+// require_once 'template.php'; // Не используется, так как используем простой HTML как в index.php
 
 $id = 1;
 
@@ -104,7 +104,43 @@ if (isset($_POST['button_off'])) {
     }
 }
 
-// Формируем интерфейс приложения для браузера
-echo renderFullPage($device_name, $temperature, $temperature_dt, $out_state, $out_state_dt, $id);
+// Формируем интерфейс приложения для браузера (такой же простой как в index.php)
+echo '
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>MyApp</title>
+</head>
+<body>
+<table>
+<tr>
+<td width=100px> Устройство:</td>
+<td width=40px>'.$device_name.'</td>
+</tr>
+</table>
+
+<table border=1>
+<tr>
+<td width=100px> Температура</td>
+<td width=40px>'.$temperature.'</td>
+<td width=150px>'.$temperature_dt.'</td>
+</tr>
+<tr>
+<td width=100px> Реле</td>
+<td width=40px>'.$out_state.'</td>
+<td width=150px>'.$out_state_dt.'</td>
+</tr>
+</table>
+
+<form method="POST">
+    <button name="button_on" value="1">Включить реле</button>
+</form>
+<form method="POST">
+    <button name="button_off" value="1">Выключить реле</button>
+</form>
+
+</body>
+</html>';
 ?>
 
